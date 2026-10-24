@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+<title>Android AMOLED Calculator</title>
+<style>
+:root {
+  --bg: #000000;
+  --panel-bg: rgba(10, 10, 16, 0.65);
+  --line: rgba(255, 255, 255, 0.08);
+  --ink: #ffffff;
+  --mute: rgba(255, 255, 255, 0.45);
+  --p1: #9b5cff;
+  --p2: #5b45e8;
+  --p3: #7357fb;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+* { 
+  box-sizing: border-box; 
+  -webkit-tap-highlight-color: transparent; 
+  user-select: none; 
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+html, body { 
+  height: 100%; 
+  margin: 0; 
+}
+
+body {
+  background: var(--bg);
+  background-image: 
+    radial-gradient(circle at 10% 15%, rgba(155, 92, 255, 0.12) 0%, transparent 50%),
+    radial-gradient(circle at 90% 85%, rgba(91, 69, 232, 0.12) 0%, transparent 50%);
+  color: var(--ink);
+  font-family: "Poppins", "Segoe UI", system-ui, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 10px;
+}
+
+/* Glassmorphism App Frame */
+.app-frame {
+  position: relative;
+  width: 100%;
+  max-width: 390px;
+  background: var(--panel-bg);
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+  border-radius: 36px;
+  border: 1px solid var(--line);
+  box-shadow: 0 40px 100px rgba(0,0,0,0.98), inset 0 1px 0 rgba(255,255,255,0.15);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 16px 18px 20px 18px;
+  animation: frameIn 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes frameIn {
+  from { opacity: 0; transform: translateY(20px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Android Status Bar */
+.status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: var(--mute);
+  padding: 0 4px 10px 4px;
+  font-weight: 500;
+  letter-spacing: .02em;
+}
+
+.status-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.battery-indicator {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* Header Bar: CALCULATOR left, Continuous Loop Logo right */
+.header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 2px 10px 2px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 12px;
+}
+
+.header-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.header-title {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  background: linear-gradient(135deg, #ffffff, var(--mute));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: glowText 4s ease-in-out infinite alternate;
+}
+
+@keyframes glowText {
+  from { filter: drop-shadow(0 0 2px rgba(255,255,255,0.2)); }
+  to { filter: drop-shadow(0 0 8px var(--p1)); }
+}
+
+.header-subtitle {
+  font-size: 9px;
+  color: var(--mute);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+/* Continuous Unstoppable Animated Logo */
+.logo-box {
+  position: relative;
+  width: 72px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-box svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.logo-body { fill: rgba(15, 15, 25, 0.4); stroke: url(#g); stroke-width: 4; }
+.logo-disp { fill: rgba(5, 5, 10, 0.6); stroke: rgba(255,255,255,0.15); stroke-width: 1.5; }
+.logo-num { font-size: 16px; font-weight: 600; fill: #c9b4ff; }
+.logo-key { fill: rgba(255,255,255,0.04); stroke: rgba(255,255,255,0.1); stroke-width: 1; }
+.logo-eq { fill: url(#g); }
+
+.loop-anim .logo-body { animation: drawLoop 3s ease-in-out infinite; stroke-dasharray: 520; }
+.loop-anim .logo-disp { animation: wipeLoop 3s ease-in-out infinite; transform-box: fill-box; transform-origin: left center; }
+.loop-anim .logo-num { animation: numLoop 3s ease-in-out infinite; }
+.loop-anim .logo-key { animation: popLoop 3s ease-in-out infinite; transform-box: fill-box; transform-origin: center; animation-delay: calc(var(--i)*.08s); }
+.loop-anim .logo-eq { animation: eqLoop 3s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+
+@keyframes drawLoop {
+  0%, 15% { stroke-dashoffset: 520; fill-opacity: 0; }
+  45%, 85% { stroke-dashoffset: 0; fill-opacity: 1; }
+  100% { stroke-dashoffset: 520; fill-opacity: 0; }
+}
+
+@keyframes wipeLoop {
+  0%, 20% { transform: scaleX(0); }
+  50%, 80% { transform: scaleX(1); }
+  100% { transform: scaleX(0); }
+}
+
+@keyframes numLoop {
+  0%, 30% { opacity: 0; }
+  50%, 80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes popLoop {
+  0%, 35% { transform: scale(0); opacity: 0; }
+  55%, 75% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0); opacity: 0; }
+}
+
+@keyframes eqLoop {
+  0%, 40% { transform: scale(0); }
+  60%, 75% { transform: scale(1); filter: drop-shadow(0 0 8px var(--p1)); }
+  100% { transform: scale(0); }
+}
+
+/* Secondary Toolbar with 100% Transparent Glass Buttons */
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 8px;
+}
+
+.tool-btn {
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  color: var(--ink);
+  font-size: 11px;
+  padding: 8px 10px;
+  border-radius: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  flex: 1;
+  font-weight: 500;
+}
+
+.tool-btn:hover {
+  border-color: var(--p1);
+  background: rgba(155, 92, 255, 0.08);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3), 0 0 10px rgba(155,92,255,0.2);
+}
+
+/* Scientific Panel Drawer with Transparent Glass Buttons */
+.sci-panel {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), margin-bottom 0.35s ease;
+  margin-bottom: 0;
+}
+
+.sci-panel.open {
+  max-height: 95px;
+  margin-bottom: 10px;
+}
+
+.sci-btn {
+  height: 36px;
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(155, 92, 255, 0.18);
+  border-radius: 10px;
+  font-size: 12px;
+  color: var(--p1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.sci-btn:hover { 
+  background: rgba(155, 92, 255, 0.12); 
+  border-color: var(--p1);
+  transform: scale(1.04);
+  box-shadow: 0 0 12px rgba(155,92,255,0.3);
+}
+
+/* Calculator Screen (Pure non-input div container, zero spinners) */
+.screen {
+  position: relative;
+  height: 105px;
+  border-radius: 20px;
+  background: rgba(5, 5, 12, 0.45);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--line);
+  margin-bottom: 14px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 12px 18px;
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.7);
+}
+
+.expr {
+  font-size: 12px;
+  color: var(--mute);
+  min-height: 16px;
+  letter-spacing: .04em;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.res-container {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  width: 100%;
+}
+
+.res {
+  font-size: 36px;
+  font-weight: 600;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: #ffffff;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.caret {
+  display: inline-block;
+  width: 2px;
+  height: .8em;
+  background: var(--p1);
+  margin-left: 3px;
+  vertical-align: -.1em;
+  animation: blink 1s steps(2) infinite;
+}
+
+@keyframes blink { 50% { opacity: 0; } }
+
+/* Keypad - 100% Transparent Glassmorphism Buttons with iOS Water Ripple */
+.keys {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.k {
+  position: relative;
+  overflow: hidden;
+  height: 50px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.025);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.95);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+.k:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.22);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 22px rgba(0,0,0,0.35), 0 0 15px rgba(155, 92, 255, 0.25);
+}
+
+.k:active {
+  transform: scale(0.92);
+}
+
+.k.op {
+  color: var(--p1);
+  font-weight: 600;
+  background: rgba(155, 92, 255, 0.03);
+  border-color: rgba(155, 92, 255, 0.15);
+  text-shadow: 0 0 10px rgba(155,92,255,0.4);
+}
+
+.k.action {
+  color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.03);
+  border-color: rgba(255, 107, 107, 0.15);
+}
+
+.k.eq {
+  background: linear-gradient(135deg, rgba(155,92,255,0.25), rgba(91,69,232,0.25));
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--p1);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 6px 25px rgba(115,87,251,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
+}
+
+.k.eq:hover {
+  background: linear-gradient(135deg, rgba(155,92,255,0.4), rgba(91,69,232,0.4));
+  box-shadow: 0 8px 30px rgba(115,87,251,0.6), 0 0 25px var(--p1);
+}
+
+/* iOS Water / Glass Ripple Animation */
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(155,92,255,0.35) 60%, transparent 100%);
+  transform: scale(0);
+  animation: waterRipple 0.5s cubic-bezier(0, 0, 0.2, 1) forwards;
+  pointer-events: none;
+}
+
+@keyframes waterRipple {
+  to {
+    transform: scale(4.8);
+    opacity: 0;
+  }
+}
+
+/* Modals (Theme & History) with Transparent Glass */
+.modal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s ease;
+  border-radius: 36px;
+}
+
+.modal-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal-content {
+  width: 100%;
+  background: rgba(12, 12, 20, 0.82);
+  backdrop-filter: blur(35px);
+  -webkit-backdrop-filter: blur(35px);
+  border-top: 1px solid var(--line);
+  border-radius: 28px 28px 36px 36px;
+  padding: 22px;
+  max-height: 72vh;
+  overflow-y: auto;
+  transform: translateY(100%);
+  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  box-shadow: 0 -20px 50px rgba(0,0,0,0.9);
+}
+
+.modal-overlay.active .modal-content {
+  transform: translateY(0);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  font-weight: 600;
+  font-size: 16px;
+  color: #fff;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: var(--mute);
+  font-size: 20px;
+  cursor: pointer;
+  transition: color .2s;
+}
+
+.close-btn:hover { color: #fff; }
+
+/* Theme Swatches Grid */
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.theme-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  cursor: pointer;
+  transition: all 0.2s;
+  color: #fff;
+  font-size: 13px;
+}
+
+.theme-option:hover { 
+  border-color: var(--p1); 
+  background: rgba(155,92,255,0.08); 
+  box-shadow: 0 0 15px rgba(155,92,255,0.2);
+}
+
+.color-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  box-shadow: 0 0 12px currentColor;
+}
+
+/* History List */
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.history-item {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  padding: 11px 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.history-item:hover { 
+  background: rgba(155,92,255,0.08); 
+  border-color: var(--p1); 
+  box-shadow: 0 0 15px rgba(155,92,255,0.2);
+}
+
+.history-expr { font-size: 12px; color: var(--mute); }
+.history-res { font-size: 15px; font-weight: 600; color: #fff; }
+.empty-history { text-align: center; color: var(--mute); font-size: 13px; padding: 24px 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration: .01s !important; animation: none !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="app-frame" id="appFrame">
+  <!-- Android Status Bar -->
+  <div class="status-bar">
+    <div id="system-datetime">Sat, 10:42 PM</div>
+    <div class="status-right">
+      <span>5G</span>
+      <div class="battery-indicator">
+        <span id="battery-level">98%</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="6" width="18" height="12" rx="2"/><path d="M23 10v4"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header Bar: CALCULATOR left, Continuous Loop Logo right -->
+  <div class="header-bar">
+    <div class="header-title-group">
+      <div class="header-title">CALCULATOR</div>
+      <div class="header-subtitle">AMOLED Transparent Glass</div>
+    </div>
+    <div class="logo-box loop-anim" id="logoBox" title="Continuous Animated Logo">
+      <svg viewBox="30 10 140 180" role="img" aria-label="Calculator logo">
+        <defs>
+          <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="var(--p1)"/>
+            <stop offset="1" stop-color="var(--p2)"/>
+          </linearGradient>
+        </defs>
+        <rect class="logo-body" x="40" y="20" width="120" height="160" rx="26"/>
+        <rect class="logo-disp" x="56" y="36" width="88" height="34" rx="11"/>
+        <text class="logo-num" x="136" y="60" text-anchor="end">192</text>
+        <g id="logoKeys"></g>
+        <rect class="logo-eq" x="120" y="82" width="24" height="78" rx="9"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Secondary Toolbar -->
+  <div class="toolbar">
+    <button class="tool-btn" id="sciToggleBtn">Scientific</button>
+    <button class="tool-btn" id="themeBtn">Theme</button>
+    <button class="tool-btn" id="historyBtn">History</button>
+  </div>
+
+  <!-- Scientific Mode Drawer -->
+  <div class="sci-panel" id="sciPanel">
+    <div class="sci-btn" data-val="sin(">sin</div>
+    <div class="sci-btn" data-val="cos(">cos</div>
+    <div class="sci-btn" data-val="tan(">tan</div>
+    <div class="sci-btn" data-val="Math.log10(">log</div>
+    <div class="sci-btn" data-val="Math.log(">ln</div>
+    <div class="sci-btn" data-val="Math.sqrt(">√</div>
+    <div class="sci-btn" data-val="**">x^y</div>
+    <div class="sci-btn" data-val="Math.PI">π</div>
+    <div class="sci-btn" data-val="Math.E">e</div>
+    <div class="sci-btn" data-val="**2">x²</div>
+  </div>
+
+  <!-- Pure Div Calculator Screen (Zero input fields or spinners) -->
+  <div class="screen">
+    <div class="expr" id="expr"></div>
+    <div class="res-container">
+      <div class="res" id="res">0<span class="caret"></span></div>
+    </div>
+  </div>
+
+  <!-- 100% Transparent Glass Keypad -->
+  <div class="keys" id="keys"></div>
+
+  <!-- Theme Selector Modal -->
+  <div class="modal-overlay" id="themeModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <span>Select Neon Accent</span>
+        <button class="close-btn" id="closeThemeModal">&times;</button>
+      </div>
+      <div class="theme-grid">
+        <div class="theme-option" onclick="setTheme('#9b5cff', '#5b45e8', '#7357fb')">
+          <div class="color-dot" style="background: #9b5cff; color: #9b5cff;"></div>
+          <span>Neon Purple</span>
+        </div>
+        <div class="theme-option" onclick="setTheme('#00f2fe', '#4facfe', '#00c6ff')">
+          <div class="color-dot" style="background: #00f2fe; color: #00f2fe;"></div>
+          <span>Cyber Cyan</span>
+        </div>
+        <div class="theme-option" onclick="setTheme('#00b09b', '#96c93d', '#00b09b')">
+          <div class="color-dot" style="background: #00b09b; color: #00b09b;"></div>
+          <span>Matrix Green</span>
+        </div>
+        <div class="theme-option" onclick="setTheme('#f7971e', '#ffd200', '#f7971e')">
+          <div class="color-dot" style="background: #ffd200; color: #ffd200;"></div>
+          <span>Amber Gold</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- History Modal -->
+  <div class="modal-overlay" id="historyModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <span>Calculation History</span>
+        <button class="close-btn" id="closeHistoryModal">&times;</button>
+      </div>
+      <div class="history-list" id="historyList">
+        <div class="empty-history">No past calculations yet.</div>
+      </div>
+      <button class="tool-btn" id="clearHistoryBtn" style="width: 100%; justify-content: center; margin-top: 8px;">Clear History</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Build Logo Keys for Infinite Loop Animation
+const logoKeysGroup = document.getElementById("logoKeys");
+const syms = ["+","−","×","÷","%","."];
+let logoKeysHtml = "";
+syms.forEach((s, i) => {
+  const x = 56 + (i % 2) * 32;
+  const y = 82 + Math.floor(i / 2) * 28;
+  logoKeysHtml += `<rect class="logo-key" style="--i:${i}" x="${x}" y="${y}" width="24" height="22" rx="8"/>`;
+});
+logoKeysGroup.innerHTML = logoKeysHtml;
+
+// Calculator Keypad Configuration
+const cleanKeysData = [
+  ["C", "action"], ["⌫", "action"], ["(", "op"], ["÷", "op"],
+  ["7"], ["8"], ["9"], ["×", "op"],
+  ["4"], ["5"], ["6"], ["−", "op"],
+  ["1"], ["2"], ["3"], ["+", "op"],
+  ["0"], ["."], ["%", "op"], ["=", "eq"]
+];
+
+const keysEl = document.getElementById("keys");
+cleanKeysData.forEach(([text, className]) => {
+  const btn = document.createElement("div");
+  btn.className = "k " + (className || "");
+  btn.textContent = text;
+  btn.dataset.val = text;
+  keysEl.appendChild(btn);
+});
+
+// Real-Time System Date, Clock & Battery
+function updateSystemInfo() {
+  const now = new Date();
+  const options = { weekday: 'short', month: 'short', day: 'numeric' };
+  const dateStr = now.toLocaleDateString('en-US', options);
+  let hours = now.getHours();
+  const minutes = now.getMinutes().toString().padStart(2, '0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12 || 12;
+  document.getElementById("system-datetime").textContent = `${dateStr}, ${hours}:${minutes} ${ampm}`;
+}
+setInterval(updateSystemInfo, 1000);
+updateSystemInfo();
+
+if (navigator.getBattery) {
+  navigator.getBattery().then(battery => {
+    function updateBattery() {
+      const lvl = Math.round(battery.level * 100);
+      document.getElementById("battery-level").textContent = lvl + "%";
+    }
+    updateBattery();
+    battery.addEventListener('levelchange', updateBattery);
+  });
+}
+
+// Scientific Panel Toggle
+const sciPanel = document.getElementById("sciPanel");
+document.getElementById("sciToggleBtn").onclick = () => {
+  sciPanel.classList.toggle("open");
+};
+
+// Theme Switcher Logic
+function setTheme(p1, p2, p3) {
+  document.documentElement.style.setProperty('--p1', p1);
+  document.documentElement.style.setProperty('--p2', p2);
+  document.documentElement.style.setProperty('--p3', p3);
+  document.getElementById("themeModal").classList.remove("active");
+}
+
+document.getElementById("themeBtn").onclick = () => document.getElementById("themeModal").classList.add("active");
+document.getElementById("closeThemeModal").onclick = () => document.getElementById("themeModal").classList.remove("active");
+
+// History Modal Logic
+let historyLog = JSON.parse(localStorage.getItem("calc_history_glass_transparent") || "[]");
+
+function renderHistory() {
+  const listEl = document.getElementById("historyList");
+  if (historyLog.length === 0) {
+    listEl.innerHTML = '<div class="empty-history">No past calculations yet.</div>';
+    return;
+  }
+  listEl.innerHTML = historyLog.map((item, idx) => `
+    <div class="history-item" onclick="loadHistoryItem(${idx})">
+      <div class="history-expr">${item.expr}</div>
+      <div class="history-res">${item.res}</div>
+    </div>
+  `).join("");
+}
+
+function loadHistoryItem(idx) {
+  const item = historyLog[idx];
+  currentExpression = item.res;
+  historyExpr = item.expr;
+  calculated = true;
+  updateDisplay();
+  document.getElementById("historyModal").classList.remove("active");
+}
+
+document.getElementById("historyBtn").onclick = () => {
+  renderHistory();
+  document.getElementById("historyModal").classList.add("active");
+};
+document.getElementById("closeHistoryModal").onclick = () => document.getElementById("historyModal").classList.remove("active");
+document.getElementById("clearHistoryBtn").onclick = () => {
+  historyLog = [];
+  localStorage.removeItem("calc_history_glass_transparent");
+  renderHistory();
+};
+
+// Calculator Functional Logic & Water Glass Ripple Effect
+let currentExpression = "";
+let historyExpr = "";
+let calculated = false;
+
+const exprEl = document.getElementById("expr");
+const resEl = document.getElementById("res");
+
+function updateDisplay() {
+  exprEl.textContent = historyExpr;
+  resEl.innerHTML = (currentExpression === "" ? "0" : currentExpression) + '<span class="caret"></span>';
+}
+
+function handleButtonInput(val, btnElement) {
+  // Haptic feedback
+  if (navigator.vibrate) navigator.vibrate(18);
+
+  // iOS Water / Glass Ripple Effect
+  const rect = btnElement.getBoundingClientRect();
+  const size = Math.max(rect.width, rect.height);
+  const ripple = document.createElement('span');
+  ripple.className = 'ripple';
+  ripple.style.width = ripple.style.height = size + 'px';
+  ripple.style.left = (rect.width / 2 - size / 2) + 'px';
+  ripple.style.top = (rect.height / 2 - size / 2) + 'px';
+  btnElement.appendChild(ripple);
+  setTimeout(() => ripple.remove(), 500);
+
+  if (val === "C") {
+    currentExpression = "";
+    historyExpr = "";
+    calculated = false;
+    updateDisplay();
+    return;
+  }
+
+  if (val === "⌫") {
+    if (calculated) {
+      currentExpression = "";
+      calculated = false;
+    } else if (currentExpression.length > 0) {
+      currentExpression = currentExpression.slice(0, -1);
+    }
+    updateDisplay();
+    return;
+  }
+
+  if (val === "=") {
+    if (!currentExpression || calculated) return;
+    try {
+      let evalStr = currentExpression
+        .replace(/×/g, "*")
+        .replace(/÷/g, "/")
+        .replace(/−/g, "-")
+        .replace(/%/g, "/100");
+
+      let result = Function(`return ${evalStr}`)();
+      if (typeof result === "number" && !isNaN(result)) {
+        result = parseFloat(result.toFixed(8));
+      }
+      
+      const fullExpr = currentExpression + " =";
+      historyExpr = fullExpr;
+      const resStr = result.toString();
+
+      historyLog.unshift({ expr: fullExpr, res: resStr });
+      if (historyLog.length > 15) historyLog.pop();
+      localStorage.setItem("calc_history_glass_transparent", JSON.stringify(historyLog));
+
+      currentExpression = resStr;
+      calculated = true;
+      updateDisplay();
+    } catch (err) {
+      resEl.textContent = "Error";
+      setTimeout(() => {
+        currentExpression = "";
+        updateDisplay();
+      }, 1200);
+    }
+    return;
+  }
+
+  if (calculated) {
+    if ("0123456789.".includes(val)) {
+      currentExpression = val;
+    } else {
+      currentExpression = currentExpression + val;
+    }
+    historyExpr = "";
+    calculated = false;
+  } else {
+    if (currentExpression === "0" && !isNaN(val)) {
+      currentExpression = val;
+    } else {
+      currentExpression += val;
+    }
+  }
+  updateDisplay();
+}
+
+document.querySelectorAll(".k, .sci-btn").forEach(btn => {
+  btn.addEventListener("click", (e) => {
+    handleButtonInput(btn.dataset.val, btn);
+  });
+});
+</script>
+</body>
+</html>
